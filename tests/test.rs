@@ -12,3 +12,9 @@ pub fn test_literal1() {
 pub fn test_literal2() {
     assert_eq!(lc!("Very secret word"), "Very secret word");
 }
+
+#[test]
+pub fn test_file() {
+    assert_eq!(lc_text_file!("text_file.json"), "{\"prueba\": 1}");
+}
+

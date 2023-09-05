@@ -69,7 +69,7 @@ use proc_macro::{TokenStream, TokenTree};
 use proc_macro2::Literal;
 use rand::{rngs::OsRng, RngCore};
 use quote::quote;
-use std::env;
+use std::{env, fs::File, path::{Path, PathBuf}, io::Read, str};
 
 mod xor;
 
@@ -196,6 +196,30 @@ pub fn lc_env(tokens: TokenStream) -> TokenStream {
     encrypt_string(env::var(var_name).unwrap_or(String::from("unknown")))
 }
 
+/// Encrypts text file contents with the key set before, via calling [`use_litcrypt!`].
+#[proc_macro]
+pub fn lc_text_file(tokens: TokenStream) -> TokenStream {
+    let mut file_name = String::from("");
+
+    for tok in tokens {
+        file_name = match tok {
+            TokenTree::Literal(lit) => lit.to_string(),
+            _ => "<unknown>".to_owned(),
+        }
+    }
+
+    file_name = String::from(&file_name[1..file_name.len() - 1]);
+
+    let path = match resolve_path(file!(), &file_name) {
+        Ok(x) => x,
+        Err(msg) => {
+            panic!("{} in lc_text_file!({:?})", msg, file_name);
+        }
+    };
+
+    encrypt_string(load_file_str(&path).unwrap_or("unknown").to_string())
+}
+
 fn encrypt_string(something: String) -> TokenStream {
     let magic_spell = get_magic_spell();
     let encrypt_key = xor::xor(&magic_spell, b"l33t");
@@ -207,4 +231,31 @@ fn encrypt_string(something: String) -> TokenStream {
     };
 
     result.into()
+}
+
+#[doc(hidden)]
+fn load_file_bytes(path: &Path) -> Result<&'static [u8], &'static str> {
+    let mut f = File::open(path).map_err(|_| "file not found")?;
+
+    let mut contents = Vec::new();
+    f.read_to_end(&mut contents)
+        .map_err(|_| "unable to read the file")?;
+
+    let contents = contents.into_boxed_slice();
+    Ok(Box::leak(contents))
+}
+
+#[doc(hidden)]
+fn load_file_str(path: &Path) -> Result<&'static str, &'static str> {
+    let bytes = load_file_bytes(path)?;
+    let s = str::from_utf8(bytes).map_err(|_| "invalid utf8")?;
+    Ok(s)
+}
+
+#[doc(hidden)]
+fn resolve_path(base: &str, rel: &str) -> Result<PathBuf, &'static str> {
+    Ok(Path::new(base)
+        .parent()
+        .ok_or("invalid source file path")?
+        .join(rel))
 }
