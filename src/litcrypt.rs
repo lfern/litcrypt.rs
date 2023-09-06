@@ -209,15 +209,15 @@ pub fn lc_text_file(tokens: TokenStream) -> TokenStream {
     }
 
     file_name = String::from(&file_name[1..file_name.len() - 1]);
-
-    let path = match resolve_path(file!(), &file_name) {
+    // let span = proc_macro::Span::call_site();
+    let path = match resolve_path2(/*file!()*/ std::env::current_dir().unwrap().to_str().unwrap(), &file_name) {
         Ok(x) => x,
         Err(msg) => {
             panic!("{} in lc_text_file!({:?})", msg, file_name);
         }
     };
-
-    encrypt_string(load_file_str(&path).unwrap_or("unknown").to_string())
+    
+    encrypt_string(load_file_str(&path).unwrap().to_string())
 }
 
 fn encrypt_string(something: String) -> TokenStream {
@@ -252,10 +252,17 @@ fn load_file_str(path: &Path) -> Result<&'static str, &'static str> {
     Ok(s)
 }
 
+#[allow(dead_code)]
 #[doc(hidden)]
 fn resolve_path(base: &str, rel: &str) -> Result<PathBuf, &'static str> {
     Ok(Path::new(base)
         .parent()
         .ok_or("invalid source file path")?
+        .join(rel))
+}
+
+#[doc(hidden)]
+fn resolve_path2(base: &str, rel: &str) -> Result<PathBuf, &'static str> {
+    Ok(Path::new(base)
         .join(rel))
 }

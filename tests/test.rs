@@ -15,6 +15,6 @@ pub fn test_literal2() {
 
 #[test]
 pub fn test_file() {
-    assert_eq!(lc_text_file!("text_file.json"), "{\"prueba\": 1}");
+    assert_eq!(lc_text_file!("tests/text_file.json"), "{\"prueba\": 1}");
 }
 
