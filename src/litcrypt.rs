@@ -210,7 +210,11 @@ pub fn lc_text_file(tokens: TokenStream) -> TokenStream {
 
     file_name = String::from(&file_name[1..file_name.len() - 1]);
     // let span = proc_macro::Span::call_site();
-    let path = match resolve_path2(/*file!()*/ std::env::current_dir().unwrap().to_str().unwrap(), &file_name) {
+    let path = match env::var("CARGO_MANIFEST_DIR") {
+        Ok(path) => path,
+        Err(_) => std::env::current_dir().unwrap().to_str().unwrap().to_string(),
+    };
+    let path = match resolve_path2(/*file!()*/ &path, &file_name) {
         Ok(x) => x,
         Err(msg) => {
             panic!("{} in lc_text_file!({:?})", msg, file_name);
