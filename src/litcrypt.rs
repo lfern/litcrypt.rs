@@ -60,6 +60,7 @@ extern crate proc_macro;
 extern crate proc_macro2;
 extern crate rand;
 extern crate quote;
+extern crate regex;
 
 #[cfg(test)]
 #[macro_use(expect)]
@@ -69,6 +70,7 @@ use proc_macro::{TokenStream, TokenTree};
 use proc_macro2::Literal;
 use rand::{rngs::OsRng, RngCore};
 use quote::quote;
+use regex::Regex;
 use std::{env, fs::File, path::{Path, PathBuf}, io::Read, str};
 
 mod xor;
@@ -174,7 +176,18 @@ pub fn lc(tokens: TokenStream) -> TokenStream {
             _ => "<unknown>".to_owned(),
         }
     }
-    something = String::from(&something[1..something.len() - 1]);
+    if something.starts_with("r#\"") {
+        // Case raw string r#"..."#
+        something = String::from(&something[3..something.len() - 2]);
+    } else if something.starts_with("r\"") {
+        // Case raw string r"..."
+        something = String::from(&something[2..something.len() - 1]);
+    } else {
+        // try to reinterpret in case if escapes
+        something = String::from(&something[1..something.len() - 1]);
+        something = interpret_escapes(&something);
+    }
+    
     
     encrypt_string(something)
 }
@@ -236,6 +249,26 @@ fn encrypt_string(something: String) -> TokenStream {
 
     result.into()
 }
+
+fn interpret_escapes(input: &str) -> String {
+    let re = Regex::new(r#"\\([ntrb\\'\"vf])"#).unwrap();
+
+    re.replace_all(input, |caps: &regex::Captures| {
+        match &caps[1] {
+            "n" => "\n".to_string(),
+            "t" => "\t".to_string(),
+            "r" => "\r".to_string(),
+            "b" => "\x08".to_string(),
+            "\\" => "\\".to_string(),
+            "'" => "'".to_string(),
+            "\"" => "\"".to_string(),
+            "f" => "\x0C".to_string(),
+            "v" => "\x0B".to_string(),
+            _ => caps[0].to_string(),
+        }
+    }).to_string()
+}
+
 
 #[doc(hidden)]
 fn load_file_bytes(path: &Path) -> Result<&'static [u8], &'static str> {
