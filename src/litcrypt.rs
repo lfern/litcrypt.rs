@@ -94,8 +94,19 @@ fn get_magic_spell() -> Vec<u8> {
 pub fn use_litcrypt(_tokens: TokenStream) -> TokenStream {
     let magic_spell = get_magic_spell();
 
+    #[cfg(feature = "use_alloc")]
+    let alloc_dep =  quote! {
+        use alloc::string::String;
+        use alloc::vec::Vec;
+    };
+    #[cfg(not(feature = "use_alloc"))]
+    let alloc_dep =  quote! {
+    };
+
     let encdec_func = quote! {
         pub mod litcrypt_internal {
+            #alloc_dep
+            
             // This XOR code taken from https://github.com/zummenix/xor-rs
             /// Returns result of a XOR operation applied to a `source` byte sequence.
             ///
